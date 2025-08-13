@@ -1,0 +1,1 @@
+Initialize my schedule downloader for stiny socks hockey
