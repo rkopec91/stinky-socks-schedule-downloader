@@ -3,81 +3,100 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 )
 
-type Game struct {
+type Event struct {
+	Title    string
+	Start    time.Time
+	End      time.Time
+	Location string
+}
+
+type ScheduleItem struct {
 	LocalTeamName   string `json:"LocalTeamName"`
 	VisitorTeamName string `json:"VisitorTeamName"`
 	Date            string `json:"Date"`
 	StartTime       string `json:"StartTime"`
 	EndTime         string `json:"EndTime"`
-	Note            string `json:"Note"`
+	SportCenterName string `json:"SportCenterName"`
 }
 
-type Event struct {
-	Title string
-	Start time.Time
-	End   time.Time
-	Note  string
-}
+func fetchScheduleWeek(startDate, endDate, cookie string) ([]ScheduleItem, error) {
+	url := fmt.Sprintf(
+		"https://byot.kreezee-sports.com/api/v2/solutions/8031/schedule?startDate=%s%%2000:00:00&endDate=%s%%2023:59:59",
+		startDate, endDate,
+	)
 
-func main() {
-	fmt.Println("Schedule Downloader")
-
-	// Example URL for a week
-	url := "https://byot.kreezee-sports.com/api/v2/solutions/8031/schedule?startDate=2025-08-11%2000:00:00&endDate=2025-08-17%2023:59:59"
-
-	resp, err := http.Get(url)
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatalf("Failed to access url: %v", err)
+		return nil, err
+	}
+
+	// Headers
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+	req.Header.Set("Cookie", cookie)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	var games []Game
-	if err := json.NewDecoder(resp.Body).Decode(&games); err != nil {
-		log.Fatalf("Failed to decode JSON: %v", err)
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	if strings.HasPrefix(string(bodyBytes), "<") {
+		return nil, fmt.Errorf("got HTML instead of JSON; likely requires login or headers")
+	}
+
+	var data []ScheduleItem
+	if err := json.Unmarshal(bodyBytes, &data); err != nil {
+		return nil, fmt.Errorf("failed to decode JSON: %v", err)
+	}
+
+	return data, nil
+}
+
+func main() {
+	teamFilter := "Puck Luck"
+	cookie := "YOUR_SESSION_COOKIE_HERE" // Replace with your actual cookie
+
+	// Default: today → one year from today
+	startDate := time.Now().Format("2006-01-02")
+	endDate := time.Now().AddDate(1, 0, 0).Format("2006-01-02")
+
+	fmt.Printf("Fetching schedule for team containing '%s' from %s to %s...\n", teamFilter, startDate, endDate)
+
+	eventsJSON, err := fetchScheduleWeek(startDate, endDate, cookie)
+	if err != nil {
+		log.Fatalf("Error fetching schedule: %v", err)
 	}
 
 	events := []Event{}
+	for _, e := range eventsJSON {
+		if strings.Contains(strings.ToLower(e.LocalTeamName), strings.ToLower(teamFilter)) ||
+			strings.Contains(strings.ToLower(e.VisitorTeamName), strings.ToLower(teamFilter)) {
 
-	for _, g := range games {
-		localLower := strings.ToLower(g.LocalTeamName)
-		visitorLower := strings.ToLower(g.VisitorTeamName)
+			startTime, _ := time.Parse("2006-01-02T15:04:05", e.Date+"T"+e.StartTime)
+			endTime, _ := time.Parse("2006-01-02T15:04:05", e.Date+"T"+e.EndTime)
 
-		// Filter for any team containing "puck luck"
-		if !strings.Contains(localLower, "puck luck") && !strings.Contains(visitorLower, "puck luck") {
-			continue
+			title := fmt.Sprintf("%s vs %s", e.LocalTeamName, e.VisitorTeamName)
+			location := e.SportCenterName
+			events = append(events, Event{
+				Title:    title,
+				Start:    startTime,
+				End:      endTime,
+				Location: location,
+			})
 		}
-
-		// Parse start and end times
-		startTime, err := time.Parse("2006-01-02T15:04:05", g.Date+"T"+g.StartTime)
-		if err != nil {
-			log.Printf("Failed to parse start time for %s vs %s: %v", g.LocalTeamName, g.VisitorTeamName, err)
-			continue
-		}
-
-		endTime, err := time.Parse("2006-01-02T15:04:05", g.Date+"T"+g.EndTime)
-		if err != nil {
-			log.Printf("Failed to parse end time for %s vs %s: %v", g.LocalTeamName, g.VisitorTeamName, err)
-			continue
-		}
-
-		title := fmt.Sprintf("%s vs %s", g.LocalTeamName, g.VisitorTeamName)
-
-		events = append(events, Event{
-			Title: title,
-			Start: startTime,
-			End:   endTime,
-			Note:  g.Note,
-		})
 	}
 
 	fmt.Println("Filtered Events:")
-	for _, e := range events {
-		fmt.Printf("%s | Start: %s | End: %s | Note: %s\n", e.Title, e.Start.Format(time.RFC1123), e.End.Format(time.RFC1123), e.Note)
+	for _, ev := range events {
+		fmt.Printf("%s @ %s — %s to %s\n", ev.Title, ev.Location, ev.Start.Format(time.RFC1123), ev.End.Format(time.RFC1123))
 	}
 }
