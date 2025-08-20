@@ -117,7 +117,7 @@ func fetchScheduleWeek(startDate, endDate, cookie string) ([]ScheduleItem, error
 func main() {
 	ctx := context.Background()
 	teamFilter := "Puck Luck"
-	cookie := "YOUR_SESSION_COOKIE_HERE" // Replace with your actual cookie
+	cookie := "YOUR_SESSION_COOKIE_HERE"
 
 	startDate := time.Now().Format("2006-01-02")
 	endDate := time.Now().AddDate(1, 0, 0).Format("2006-01-02")
@@ -129,20 +129,20 @@ func main() {
 		log.Fatalf("Error fetching schedule: %v", err)
 	}
 
+	loc, _ := time.LoadLocation("America/New_York")
 	events := []Event{}
 	for _, e := range eventsJSON {
 		if strings.Contains(strings.ToLower(e.LocalTeamName), strings.ToLower(teamFilter)) ||
 			strings.Contains(strings.ToLower(e.VisitorTeamName), strings.ToLower(teamFilter)) {
 
-			// Strip the time part from Date before appending StartTime/EndTime
-			dateOnly := strings.Split(e.Date, "T")[0]
-
-			startTime, err := time.Parse("2006-01-02T15:04:05", dateOnly+"T"+e.StartTime)
+			dateOnly := e.Date[:10] // YYYY-MM-DD
+			startTime, err := time.ParseInLocation("2006-01-02T15:04:05", dateOnly+"T"+e.StartTime, loc)
 			if err != nil {
 				log.Printf("Failed to parse start time for event %s: %v", e.LocalTeamName+" vs "+e.VisitorTeamName, err)
 				continue
 			}
-			endTime, err := time.Parse("2006-01-02T15:04:05", dateOnly+"T"+e.EndTime)
+
+			endTime, err := time.ParseInLocation("2006-01-02T15:04:05", dateOnly+"T"+e.EndTime, loc)
 			if err != nil {
 				log.Printf("Failed to parse end time for event %s: %v", e.LocalTeamName+" vs "+e.VisitorTeamName, err)
 				continue
