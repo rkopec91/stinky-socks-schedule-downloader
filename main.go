@@ -22,6 +22,8 @@ type Event struct {
 	Start    time.Time
 	End      time.Time
 	Location string
+	Home     string
+	Away     string
 }
 
 type ScheduleItem struct {
@@ -155,6 +157,8 @@ func main() {
 				Start:    startTime,
 				End:      endTime,
 				Location: location,
+				Home:     e.LocalTeamName,
+				Away:     e.VisitorTeamName,
 			})
 		}
 	}
@@ -194,11 +198,37 @@ func main() {
 			},
 		}
 
-		created, err := srv.Events.Insert("primary", gEvent).Do()
+		// Look for an existing event in the same time window with same title
+		existing, err := srv.Events.List("primary").
+			ShowDeleted(false).
+			SingleEvents(true).
+			TimeMin(e.Start.Add(-time.Minute * 5).Format(time.RFC3339)).
+			TimeMax(e.End.Add(time.Minute * 5).Format(time.RFC3339)).
+			Q(e.Title).
+			Do()
+
 		if err != nil {
-			log.Printf("Unable to create event for %s: %v", gEvent.Summary, err)
+			log.Printf("❌ Failed to query existing events for %s: %v", e.Title, err)
 			continue
 		}
-		fmt.Printf("✅ Event created: %s (%s)\n", created.Summary, created.HtmlLink)
+
+		if len(existing.Items) > 0 {
+			// Update the first matching event
+			evID := existing.Items[0].Id
+			updated, err := srv.Events.Update("primary", evID, gEvent).Do()
+			if err != nil {
+				log.Printf("❌ Failed to update event %s: %v", gEvent.Summary, err)
+			} else {
+				fmt.Printf("🔄 Event updated: %s (%s)\n", updated.Summary, updated.HtmlLink)
+			}
+		} else {
+			// Insert new
+			created, err := srv.Events.Insert("primary", gEvent).Do()
+			if err != nil {
+				log.Printf("❌ Failed to create event %s: %v", gEvent.Summary, err)
+			} else {
+				fmt.Printf("✅ Event created: %s (%s)\n", created.Summary, created.HtmlLink)
+			}
+		}
 	}
 }
