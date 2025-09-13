@@ -35,10 +35,28 @@ type ScheduleItem struct {
 	SportCenterName string `json:"SportCenterName"`
 }
 
+func tokenValid(config *oauth2.Config, tok *oauth2.Token) bool {
+	ctx := context.Background()
+	tokenSource := config.TokenSource(ctx, tok)
+
+	// Try getting a new token
+	newTok, err := tokenSource.Token()
+	if err != nil {
+		return false
+	}
+
+	// If the new token differs from the original, persist it
+	if newTok.AccessToken != tok.AccessToken {
+		saveToken("token.json", newTok)
+	}
+
+	return true
+}
+
 func getClient(config *oauth2.Config) *http.Client {
 	tokenFile := "token.json"
 	tok, err := tokenFromFile(tokenFile)
-	if err != nil {
+	if err != nil || !tokenValid(config, tok) {
 		tok = getTokenFromWeb(config)
 		saveToken(tokenFile, tok)
 	}
