@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -64,19 +66,74 @@ func getClient(config *oauth2.Config) *http.Client {
 }
 
 func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
+	// Local redirect listener (must match Google Cloud redirect URI)
+	listener := "localhost:8080"
+	codeCh := make(chan string)
+	srv := &http.Server{Addr: listener}
+
+	// Handle the OAuth2 callback
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if errMsg := r.URL.Query().Get("error"); errMsg != "" {
+			http.Error(w, "Authorization error: "+errMsg, http.StatusBadRequest)
+			return
+		}
+
+		code := r.URL.Query().Get("code")
+		if code == "" {
+			http.Error(w, "No authorization code found.", http.StatusBadRequest)
+			return
+		}
+
+		fmt.Fprintln(w, "✅ Authorization received! You can close this window and return to the terminal.")
+		codeCh <- code
+	})
+
+	// Start the server asynchronously
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Failed to start local server: %v", err)
+		}
+	}()
+
+	// Open the URL in the user’s browser
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("Go to the following link in your browser then type the authorization code:\n%v\n", authURL)
+	fmt.Printf("\n🔗 Open the following URL in your browser (it may open automatically):\n%v\n\n", authURL)
+	// Attempt to open browser automatically (optional)
+	go func() {
+		_ = openBrowser(authURL)
+	}()
 
-	var authCode string
-	if _, err := fmt.Scan(&authCode); err != nil {
-		log.Fatalf("Unable to read authorization code: %v", err)
-	}
+	// Wait for the authorization code
+	authCode := <-codeCh
 
+	// Shut down the server after we get the code
+	_ = srv.Shutdown(context.Background())
+
+	// Exchange the code for a token
 	tok, err := config.Exchange(context.TODO(), authCode)
 	if err != nil {
 		log.Fatalf("Unable to retrieve token from web: %v", err)
 	}
+
 	return tok
+}
+
+func openBrowser(url string) error {
+	var cmd string
+	var args []string
+
+	switch os := runtime.GOOS; os {
+	case "windows":
+		cmd = "rundll32"
+		args = []string{"url.dll,FileProtocolHandler", url}
+	case "darwin":
+		cmd = "open"
+		args = []string{url}
+	default: // linux, freebsd, etc.
+		cmd = "xdg-open"
+		args = []string{url}
+	}
+	return exec.Command(cmd, args...).Start()
 }
 
 func tokenFromFile(file string) (*oauth2.Token, error) {
