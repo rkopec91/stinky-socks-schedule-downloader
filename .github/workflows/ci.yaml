@@ -26,10 +26,14 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
+          check-latest: true
 
-      # Step 3: Confirm Go version
-      - name: Check Go version
-        run: go version
+      # Step 3: Debug Go installation
+      - name: Check Go installation
+        run: |
+          which go
+          go version
+          go env
 
       # Step 4: Cache Go modules
       - name: Cache Go modules
