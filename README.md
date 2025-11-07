@@ -1,39 +1,118 @@
-Initialize my schedule downloader for stiny socks hockey
+# 🏒 Stinky Socks Hockey Schedule Downloader
 
-This code will pull games from the stinky socks website and add it to your google calendar.
+Go CLI tool that fetches Stinky Socks Hockey games from the Stinky Socks website (https://www.stinkysocks.net/) and syncs them to your Google Calendar.
 
-Website: https://www.stinkysocks.net/
+---
 
-Prepare 
+## Workflow
+
 ```
++------------+      +---------------------+      +-----------------+
+| Fetch API  | ---> | Filter & Transform  | ---> | Google Calendar |
+| Schedule   |      | Schedule Items      |      | Events          |
++------------+      +---------------------+      +-----------------+
+```
+
+1. Fetch schedule data from the Stinky Socks API.
+2. Filter for your team and convert raw data into Event structs.
+3. Sync events to your Google Calendar (create/update as needed).
+
+---
+
+## Features
+
+- Fetch schedules from Stinky Socks Hockey website.
+- Filter games by your favorite team.
+- Automatically create or update events in Google Calendar.
+- Unit-tested, modular, and interview-ready.
+
+---
+
+## Prerequisites
+
+Install dependencies:
+
+```bash
 go get github.com/PuerkitoBio/goquery
 go get -u google.golang.org/api/calendar/v3
 go get -u golang.org/x/oauth2/google
 ```
 
-Please go to [this URL](https://developers.google.com/workspace/calendar/api/quickstart/go) and follow instructions for:
-- [Enable API](https://developers.google.com/workspace/calendar/api/quickstart/go#enable_the_api)
-- [Configure the OAuth consent screen](https://developers.google.com/workspace/calendar/api/quickstart/go#configure_the_oauth_consent_screen)
-- [Authorize credentials for a desktop application](https://developers.google.com/workspace/calendar/api/quickstart/go#authorize_credentials_for_a_desktop_application)
+---
 
-Fix for not being a test user:
+## Google Calendar API Setup
 
-Go back to Google Cloud Console → APIs & Services > OAuth consent screen.
+1. Follow https://developers.google.com/workspace/calendar/api/quickstart/go
+2. Enable the API.
+3. Configure the OAuth consent screen.
+4. Authorize credentials for a **desktop application**.
 
-Scroll down to Test users.
+> ⚠️ Important: If you are not a test user, add your Gmail to the OAuth consent screen:
+>
+> - Go to Google Cloud Console → APIs & Services → OAuth consent screen
+> - Scroll to Test users → + Add Users → add your Gmail
+> - Save changes
 
-Click + Add Users.
+Place the downloaded credentials.json in the project root.
 
-Add your Gmail address (the one you’re logging in with).
+---
 
-Save.
-  
-How to run code:
+## Setup Environment Variable
+
+```bash
+export KREEZEE_COOKIE="YOUR_SESSION_COOKIE_HERE"
 ```
+
+---
+
+## Running the Application
+
+```bash
 go run cmd/main.go
 ```
 
-How to run tests:
+**Example output:**
+
 ```
+Fetching schedule for team containing 'Puck Luck' from 2025-11-06 to 2026-11-06...
+Filtered Events:
+Puck Luck vs Other Team @ Rink 1 — Fri, 07 Nov 2025 14:00:00 EST to Fri, 07 Nov 2025 15:00:00 EST
+Another Team vs Puck Luck @ Rink 2 — Sat, 08 Nov 2025 16:00:00 EST to Sat, 08 Nov 2025 17:00:00 EST
+✅ Event created: Puck Luck vs Other Team (link-to-google-calendar)
+🔄 Event updated: Another Team vs Puck Luck (link-to-google-calendar)
+```
+
+---
+
+## Running Tests
+
+```bash
 go test ./...
 ```
+
+Expected output:
+
+```
+ok      schedule-downloader/auth        0.176s
+ok      schedule-downloader/google-calendar    0.238s
+ok      schedule-downloader/schedule    0.034s
+?       schedule-downloader/cmd [no test files]
+?       schedule-downloader/models      [no test files]
+```
+
+---
+
+## Project Structure
+
+```
+schedule-downloader/
+├── auth/              # OAuth helper
+├── google-calendar/   # Google Calendar sync logic
+├── schedule/          # Fetching and transforming schedule data
+├── cmd/main.go        # CLI entrypoint
+├── go.mod             # Module dependencies
+├── go.sum
+└── credentials.json   # Google API credentials
+```
+
+---
