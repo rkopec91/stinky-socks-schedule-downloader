@@ -30,5 +30,10 @@ Save.
   
 How to run code:
 ```
-go run main.go
+go run cmd/main.go
+```
+
+How to run tests:
+```
+go test ./...
 ```
