@@ -18,7 +18,7 @@ func TestFetchScheduleWeek(t *testing.T) {
 	apiURL = func(startDate, endDate string) string { return server.URL }
 	defer func() { apiURL = oldAPIURL }()
 
-	items, err := FetchScheduleWeek("2025-11-07", "2025-11-07", "fake-cookie")
+	items, err := FetchScheduleWeek("2025-11-07", "2025-11-07")
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
