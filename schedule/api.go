@@ -17,7 +17,7 @@ var apiURL = func(startDate, endDate string) string {
 }
 
 // FetchScheduleWeek fetches the schedule between startDate and endDate using the given cookie.
-func FetchScheduleWeek(startDate, endDate, cookie string) ([]models.ScheduleItem, error) {
+func FetchScheduleWeek(startDate, endDate string) ([]models.ScheduleItem, error) {
 	url := apiURL(startDate, endDate)
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
@@ -26,7 +26,6 @@ func FetchScheduleWeek(startDate, endDate, cookie string) ([]models.ScheduleItem
 	}
 
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-	req.Header.Set("Cookie", cookie)
 
 	resp, err := client.Do(req)
 	if err != nil {

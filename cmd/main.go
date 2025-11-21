@@ -23,14 +23,9 @@ func main() {
 	teamFilter := flag.String("team", "Puck Luck", "Comma-separated list of team names to filter schedule")
 	startDate := flag.String("start", time.Now().Format("2006-01-02"), "Start date (YYYY-MM-DD)")
 	endDate := flag.String("end", time.Now().AddDate(1, 0, 0).Format("2006-01-02"), "End date (YYYY-MM-DD)")
-	cookie := flag.String("cookie", os.Getenv("KREEZEE_COOKIE"), "Kreezee session cookie")
 	calendars := flag.String("calendar", "primary", "Comma-separated list of Google Calendar IDs")
 
 	flag.Parse()
-
-	if *cookie == "" {
-		log.Fatal("Error: KREEZEE_COOKIE must be provided either as flag or environment variable")
-	}
 
 	fmt.Printf("Fetching schedule for teams '%s' from %s to %s...\n", *teamFilter, *startDate, *endDate)
 
@@ -39,7 +34,7 @@ func main() {
 	calendarIDs := parseCommaSeparated(*calendars)
 
 	// Fetch and filter schedule
-	scheduleItems, err := schedule.FetchScheduleWeek(*startDate, *endDate, *cookie)
+	scheduleItems, err := schedule.FetchScheduleWeek(*startDate, *endDate)
 	if err != nil {
 		log.Fatalf("Error fetching schedule: %v", err)
 	}
